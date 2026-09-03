@@ -1,0 +1,9 @@
+# Internal, local only: glossary, ADRs, design brief, research
+/CONTEXT.md
+/docs/
+
+# Node
+node_modules/
+dist/
+.env
+.env.*
