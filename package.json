@@ -1,0 +1,21 @@
+{
+  "name": "ondulo",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "packageManager": "pnpm@11.25.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "pnpm --recursive build",
+    "test": "pnpm --recursive test",
+    "typecheck": "pnpm --recursive typecheck"
+  },
+  "devDependencies": {
+    "tsup": "8.5.1",
+    "typescript": "7.0.2",
+    "vitest": "5.0.0"
+  }
+}

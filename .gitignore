@@ -1,6 +1,8 @@
-# Internal, local only: glossary, ADRs, design brief, research
+# Internal, local only: planning and agent handoff
 /CONTEXT.md
 /docs/
+/AGENTS.md
+/PROGRESS.md
 
 # Node
 node_modules/

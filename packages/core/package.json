@@ -1,0 +1,25 @@
+{
+  "name": "@ondulo/core",
+  "version": "0.0.0",
+  "description": "Audio analysis engine for Ondulo visualizers",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup ./src/index.ts --format esm --clean && tsc --project tsconfig.build.json",
+    "test": "vitest run",
+    "typecheck": "tsc --project tsconfig.json --noEmit"
+  }
+}
