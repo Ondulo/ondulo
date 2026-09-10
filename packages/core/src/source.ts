@@ -1,5 +1,6 @@
 import { createDemoSignal } from "./demo.js";
 import { createMediaElementParts } from "./media-element.js";
+import { createMediaStreamParts } from "./media-stream.js";
 
 const DEFAULT_SAMPLE_RATE = 48_000;
 const DEFAULT_FFT_SIZE = 2048;
@@ -35,10 +36,24 @@ export type CreateMediaElementSourceOptions = Readonly<{
   fftSize?: number;
 }>;
 
+export type CreateMediaStreamSourceOptions = Readonly<{
+  kind: "stream";
+  /**
+   * A microphone or WebRTC stream with at least one audio track. Only its
+   * first audio track is analysed, chosen when the Source is created; if that
+   * track is replaced, dispose this Source and create a new one.
+   */
+  stream: MediaStream;
+  /** AudioContext to attach to. Defaults to one shared, lazily created context. */
+  context?: AudioContext;
+  fftSize?: number;
+}>;
+
 export type CreateSourceOptions =
   | CreatePushedSourceOptions
   | CreateDemoSourceOptions
-  | CreateMediaElementSourceOptions;
+  | CreateMediaElementSourceOptions
+  | CreateMediaStreamSourceOptions;
 
 type SourceBase = Readonly<{
   [sourceBrand]: true;
@@ -68,7 +83,23 @@ export type MediaElementSource = SourceBase &
     dispose(): void;
   }>;
 
-export type Source = PushedSource | DemoSource | MediaElementSource;
+/** A Source reading a microphone or WebRTC MediaStream through an AnalyserNode. */
+export type MediaStreamSource = SourceBase &
+  Readonly<{
+    kind: "stream";
+    stream: MediaStream;
+    context: AudioContext;
+    /** Resumes the AudioContext; browsers start it suspended until a user gesture. */
+    resume(): Promise<void>;
+    /** Disconnects this Source's AnalyserNode. The stream itself is left running. */
+    dispose(): void;
+  }>;
+
+export type Source =
+  | PushedSource
+  | DemoSource
+  | MediaElementSource
+  | MediaStreamSource;
 
 /** Fills the Analyser's buffers with the Source's current frame. */
 type FrameReader = (
@@ -83,6 +114,9 @@ export function createSource(options: CreateDemoSourceOptions): DemoSource;
 export function createSource(
   options: CreateMediaElementSourceOptions,
 ): MediaElementSource;
+export function createSource(
+  options: CreateMediaStreamSourceOptions,
+): MediaStreamSource;
 export function createSource(options: CreateSourceOptions): Source {
   const fftSize = options.fftSize ?? DEFAULT_FFT_SIZE;
   validateFftSize(fftSize);
@@ -94,6 +128,8 @@ export function createSource(options: CreateSourceOptions): Source {
       return createDemoSource(options, fftSize);
     case "element":
       return createMediaElementSource(options, fftSize);
+    case "stream":
+      return createMediaStreamSource(options, fftSize);
   }
 }
 
@@ -179,6 +215,31 @@ function createMediaElementSource(
     sampleRate: parts.context.sampleRate,
     fftSize,
     element: options.element,
+    context: parts.context,
+    resume: parts.resume,
+    dispose: parts.dispose,
+  };
+
+  frameReaders.set(source, parts.read);
+  return source;
+}
+
+function createMediaStreamSource(
+  options: CreateMediaStreamSourceOptions,
+  fftSize: number,
+): MediaStreamSource {
+  const parts = createMediaStreamParts({
+    stream: options.stream,
+    context: options.context,
+    fftSize,
+  });
+
+  const source: MediaStreamSource = {
+    [sourceBrand]: true,
+    kind: "stream",
+    sampleRate: parts.context.sampleRate,
+    fftSize,
+    stream: options.stream,
     context: parts.context,
     resume: parts.resume,
     dispose: parts.dispose,

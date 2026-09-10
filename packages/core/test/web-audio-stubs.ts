@@ -1,0 +1,52 @@
+import { vi } from "vitest";
+
+/** Minimal Web Audio stand-ins; Vitest runs in Node, which has no Web Audio. */
+
+export class StubAnalyserNode {
+  fftSize = 2048;
+  smoothingTimeConstant = 0.8;
+  connect = vi.fn();
+  disconnect = vi.fn();
+  getFloatTimeDomainData(target: Float32Array): void {
+    target.fill(0.5);
+  }
+  getByteFrequencyData(target: Uint8Array): void {
+    target.fill(51);
+  }
+}
+
+export class StubSourceNode {
+  connect = vi.fn();
+  disconnect = vi.fn();
+}
+
+export class StubAudioContext {
+  sampleRate = 44_100;
+  state: AudioContextState = "suspended";
+  destination = {};
+  analysers: StubAnalyserNode[] = [];
+  createMediaElementSource = vi.fn(() => new StubSourceNode());
+  createMediaStreamSource = vi.fn(() => new StubSourceNode());
+  createAnalyser(): StubAnalyserNode {
+    const node = new StubAnalyserNode();
+    this.analysers.push(node);
+    return node;
+  }
+  resume = vi.fn(async () => {
+    this.state = "running";
+  });
+}
+
+export function createStubContext() {
+  const stub = new StubAudioContext();
+  return { stub, context: stub as unknown as AudioContext };
+}
+
+export function createStubElement(): HTMLMediaElement {
+  return {} as HTMLMediaElement;
+}
+
+export function createStubStream(audioTrackCount = 1): MediaStream {
+  const tracks = Array.from({ length: audioTrackCount }, () => ({}));
+  return { getAudioTracks: () => tracks } as unknown as MediaStream;
+}

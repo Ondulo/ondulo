@@ -1,4 +1,5 @@
 import { resolveAudioContext } from "./audio-context.js";
+import { createWebAudioParts, type WebAudioParts } from "./web-audio.js";
 
 type AttachedElement = Readonly<{
   context: AudioContext;
@@ -11,16 +12,6 @@ type AttachedElement = Readonly<{
  */
 const attachedElements = new WeakMap<HTMLMediaElement, AttachedElement>();
 
-export type MediaElementParts = Readonly<{
-  context: AudioContext;
-  read(
-    waveform: Float32Array<ArrayBuffer>,
-    spectrum: Float32Array<ArrayBuffer>,
-  ): void;
-  resume(): Promise<void>;
-  dispose(): void;
-}>;
-
 /** Wires an AnalyserNode to a media element and returns the Source's behaviour. */
 export function createMediaElementParts(
   options: Readonly<{
@@ -28,31 +19,10 @@ export function createMediaElementParts(
     context: AudioContext | undefined;
     fftSize: number;
   }>,
-): MediaElementParts {
+): WebAudioParts {
   const context = resolveAudioContext(options.context);
   const mediaNode = attachElement(options.element, context);
-  const analyserNode = context.createAnalyser();
-  analyserNode.fftSize = options.fftSize;
-  // Smoothing is a Visualizer parameter, so the node hands over raw frames.
-  analyserNode.smoothingTimeConstant = 0;
-  mediaNode.connect(analyserNode);
-  const bytes = new Uint8Array(options.fftSize / 2);
-
-  return {
-    context,
-    read(waveform, spectrum) {
-      analyserNode.getFloatTimeDomainData(waveform);
-      analyserNode.getByteFrequencyData(bytes);
-      for (let binIndex = 0; binIndex < bytes.length; binIndex += 1) {
-        spectrum[binIndex] = bytes[binIndex] / 255;
-      }
-    },
-    resume: () => context.resume(),
-    dispose() {
-      mediaNode.disconnect(analyserNode);
-      analyserNode.disconnect();
-    },
-  };
+  return createWebAudioParts(context, mediaNode, options.fftSize);
 }
 
 function attachElement(
