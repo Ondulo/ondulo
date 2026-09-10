@@ -42,8 +42,8 @@ export type DemoSignalOptions = Readonly<{
 }>;
 
 export type DemoSignalReader = (
-  waveform: Float32Array,
-  spectrum: Float32Array,
+  waveform: Float32Array<ArrayBuffer>,
+  spectrum: Float32Array<ArrayBuffer>,
 ) => void;
 
 /**
@@ -151,7 +151,7 @@ export function createDemoSignal(options: DemoSignalOptions): DemoSignalReader {
 }
 
 function writeWaveform(
-  waveform: Float32Array,
+  waveform: Float32Array<ArrayBuffer>,
   frame: Readonly<{
     time: number;
     sampleRate: number;

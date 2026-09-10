@@ -6,11 +6,11 @@
  */
 export type Features = Readonly<{
   /** Raw, linear-frequency spectrum bins normalized to the range 0 to 1. */
-  spectrum: Float32Array;
+  spectrum: Float32Array<ArrayBuffer>;
   /** Log-spaced spectrum bands normalized to the range 0 to 1. */
-  bands: Float32Array;
+  bands: Float32Array<ArrayBuffer>;
   /** Time-domain samples normalized to the range -1 to 1. */
-  waveform: Float32Array;
+  waveform: Float32Array<ArrayBuffer>;
   /** Root mean square level normalized to the range 0 to 1. */
   level: number;
   /** Average spectrum magnitude from 20 Hz up to 250 Hz. */

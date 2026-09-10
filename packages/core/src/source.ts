@@ -1,4 +1,5 @@
 import { createDemoSignal } from "./demo.js";
+import { createMediaElementParts } from "./media-element.js";
 
 const DEFAULT_SAMPLE_RATE = 48_000;
 const DEFAULT_FFT_SIZE = 2048;
@@ -26,9 +27,18 @@ export type CreateDemoSourceOptions = Readonly<{
   clock?: () => number;
 }>;
 
+export type CreateMediaElementSourceOptions = Readonly<{
+  kind: "element";
+  element: HTMLMediaElement;
+  /** AudioContext to attach to. Defaults to one shared, lazily created context. */
+  context?: AudioContext;
+  fftSize?: number;
+}>;
+
 export type CreateSourceOptions =
   | CreatePushedSourceOptions
-  | CreateDemoSourceOptions;
+  | CreateDemoSourceOptions
+  | CreateMediaElementSourceOptions;
 
 type SourceBase = Readonly<{
   [sourceBrand]: true;
@@ -46,15 +56,33 @@ export type PushedSource = SourceBase &
 /** A Source that synthesises a music-like signal without playing audio. */
 export type DemoSource = SourceBase & Readonly<{ kind: "demo" }>;
 
-export type Source = PushedSource | DemoSource;
+/** A Source reading an audio or video element through an AnalyserNode. */
+export type MediaElementSource = SourceBase &
+  Readonly<{
+    kind: "element";
+    element: HTMLMediaElement;
+    context: AudioContext;
+    /** Resumes the AudioContext; browsers start it suspended until a user gesture. */
+    resume(): Promise<void>;
+    /** Disconnects this Source's AnalyserNode. The element stays audible. */
+    dispose(): void;
+  }>;
+
+export type Source = PushedSource | DemoSource | MediaElementSource;
 
 /** Fills the Analyser's buffers with the Source's current frame. */
-type FrameReader = (waveform: Float32Array, spectrum: Float32Array) => void;
+type FrameReader = (
+  waveform: Float32Array<ArrayBuffer>,
+  spectrum: Float32Array<ArrayBuffer>,
+) => void;
 
 const frameReaders = new WeakMap<Source, FrameReader>();
 
 export function createSource(options: CreatePushedSourceOptions): PushedSource;
 export function createSource(options: CreateDemoSourceOptions): DemoSource;
+export function createSource(
+  options: CreateMediaElementSourceOptions,
+): MediaElementSource;
 export function createSource(options: CreateSourceOptions): Source {
   const fftSize = options.fftSize ?? DEFAULT_FFT_SIZE;
   validateFftSize(fftSize);
@@ -64,13 +92,15 @@ export function createSource(options: CreateSourceOptions): Source {
       return createPushedSource(options.sampleRate, fftSize);
     case "demo":
       return createDemoSource(options, fftSize);
+    case "element":
+      return createMediaElementSource(options, fftSize);
   }
 }
 
 export function readSourceFrame(
   source: Source,
-  waveformTarget: Float32Array,
-  spectrumTarget: Float32Array,
+  waveformTarget: Float32Array<ArrayBuffer>,
+  spectrumTarget: Float32Array<ArrayBuffer>,
 ): void {
   const read = frameReaders.get(source);
   if (read === undefined) {
@@ -130,6 +160,31 @@ function createDemoSource(
       clock: options.clock ?? (() => Date.now() / 1000),
     }),
   );
+  return source;
+}
+
+function createMediaElementSource(
+  options: CreateMediaElementSourceOptions,
+  fftSize: number,
+): MediaElementSource {
+  const parts = createMediaElementParts({
+    element: options.element,
+    context: options.context,
+    fftSize,
+  });
+
+  const source: MediaElementSource = {
+    [sourceBrand]: true,
+    kind: "element",
+    sampleRate: parts.context.sampleRate,
+    fftSize,
+    element: options.element,
+    context: parts.context,
+    resume: parts.resume,
+    dispose: parts.dispose,
+  };
+
+  frameReaders.set(source, parts.read);
   return source;
 }
 
