@@ -1,3 +1,6 @@
+import { createDemoSignal } from "./demo.js";
+
+const DEFAULT_SAMPLE_RATE = 48_000;
 const DEFAULT_FFT_SIZE = 2048;
 const MAX_FFT_SIZE = 32_768;
 const sourceBrand: unique symbol = Symbol("ondulo.source");
@@ -7,71 +10,127 @@ export type PushedFrame = Readonly<{
   spectrum: ArrayLike<number>;
 }>;
 
-export type CreateSourceOptions = Readonly<{
+export type CreatePushedSourceOptions = Readonly<{
   kind: "pushed";
   sampleRate: number;
   fftSize?: number;
 }>;
 
-export type Source = Readonly<{
+export type CreateDemoSourceOptions = Readonly<{
+  kind: "demo";
+  sampleRate?: number;
+  fftSize?: number;
+  /** Selects the melody and noise texture. Same seed, same signal. */
+  seed?: number;
+  /** Returns the current time in seconds. Defaults to wall-clock time. */
+  clock?: () => number;
+}>;
+
+export type CreateSourceOptions =
+  | CreatePushedSourceOptions
+  | CreateDemoSourceOptions;
+
+type SourceBase = Readonly<{
   [sourceBrand]: true;
-  kind: "pushed";
   sampleRate: number;
   fftSize: number;
-  push(frame: PushedFrame): void;
 }>;
 
-type SourceBuffers = Readonly<{
-  waveform: Float32Array;
-  spectrum: Float32Array;
-}>;
+/** A Source whose normalized frames are supplied by the host application. */
+export type PushedSource = SourceBase &
+  Readonly<{
+    kind: "pushed";
+    push(frame: PushedFrame): void;
+  }>;
 
-const sourceBuffers = new WeakMap<Source, SourceBuffers>();
+/** A Source that synthesises a music-like signal without playing audio. */
+export type DemoSource = SourceBase & Readonly<{ kind: "demo" }>;
 
-/**
- * Creates a Source whose normalized waveform and spectrum values are supplied
- * by the host application.
- */
+export type Source = PushedSource | DemoSource;
+
+/** Fills the Analyser's buffers with the Source's current frame. */
+type FrameReader = (waveform: Float32Array, spectrum: Float32Array) => void;
+
+const frameReaders = new WeakMap<Source, FrameReader>();
+
+export function createSource(options: CreatePushedSourceOptions): PushedSource;
+export function createSource(options: CreateDemoSourceOptions): DemoSource;
 export function createSource(options: CreateSourceOptions): Source {
-  validateSampleRate(options.sampleRate);
   const fftSize = options.fftSize ?? DEFAULT_FFT_SIZE;
   validateFftSize(fftSize);
 
-  const buffers: SourceBuffers = {
-    waveform: new Float32Array(fftSize),
-    spectrum: new Float32Array(fftSize / 2),
-  };
+  switch (options.kind) {
+    case "pushed":
+      return createPushedSource(options.sampleRate, fftSize);
+    case "demo":
+      return createDemoSource(options, fftSize);
+  }
+}
 
-  const source: Source = {
+export function readSourceFrame(
+  source: Source,
+  waveformTarget: Float32Array,
+  spectrumTarget: Float32Array,
+): void {
+  const read = frameReaders.get(source);
+  if (read === undefined) {
+    throw new TypeError("Source must be created with createSource().");
+  }
+
+  read(waveformTarget, spectrumTarget);
+}
+
+function createPushedSource(sampleRate: number, fftSize: number): PushedSource {
+  validateSampleRate(sampleRate);
+
+  const waveform = new Float32Array(fftSize);
+  const spectrum = new Float32Array(fftSize / 2);
+
+  const source: PushedSource = {
     [sourceBrand]: true,
     kind: "pushed",
-    sampleRate: options.sampleRate,
+    sampleRate,
     fftSize,
     push(frame) {
       validateFrameValues(frame.waveform, fftSize, -1, 1, "waveform");
       validateFrameValues(frame.spectrum, fftSize / 2, 0, 1, "spectrum");
 
-      buffers.waveform.set(frame.waveform);
-      buffers.spectrum.set(frame.spectrum);
+      waveform.set(frame.waveform);
+      spectrum.set(frame.spectrum);
     },
   };
 
-  sourceBuffers.set(source, buffers);
+  frameReaders.set(source, (waveformTarget, spectrumTarget) => {
+    waveformTarget.set(waveform);
+    spectrumTarget.set(spectrum);
+  });
   return source;
 }
 
-export function copySourceFrame(
-  source: Source,
-  waveformTarget: Float32Array,
-  spectrumTarget: Float32Array,
-): void {
-  const buffers = sourceBuffers.get(source);
-  if (buffers === undefined) {
-    throw new TypeError("Source must be created with createSource().");
-  }
+function createDemoSource(
+  options: CreateDemoSourceOptions,
+  fftSize: number,
+): DemoSource {
+  const sampleRate = options.sampleRate ?? DEFAULT_SAMPLE_RATE;
+  validateSampleRate(sampleRate);
 
-  waveformTarget.set(buffers.waveform);
-  spectrumTarget.set(buffers.spectrum);
+  const source: DemoSource = {
+    [sourceBrand]: true,
+    kind: "demo",
+    sampleRate,
+    fftSize,
+  };
+
+  frameReaders.set(
+    source,
+    createDemoSignal({
+      sampleRate,
+      fftSize,
+      seed: options.seed ?? 0,
+      clock: options.clock ?? (() => Date.now() / 1000),
+    }),
+  );
+  return source;
 }
 
 function validateSampleRate(sampleRate: number): void {

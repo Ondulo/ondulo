@@ -1,5 +1,5 @@
 import type { Features, MutableFeatures } from "./features.js";
-import { copySourceFrame, type Source } from "./source.js";
+import { readSourceFrame, type Source } from "./source.js";
 
 const DEFAULT_BANDS_PER_OCTAVE = 12;
 const DEFAULT_MIN_FREQUENCY = 32;
@@ -67,7 +67,7 @@ export function createAnalyser(options: CreateAnalyserOptions): Analyser {
     source: options.source,
     features,
     update() {
-      copySourceFrame(options.source, features.waveform, features.spectrum);
+      readSourceFrame(options.source, features.waveform, features.spectrum);
       features.level = calculateRootMeanSquare(features.waveform);
       updateSpectrumFeatures(features, layout, rangeSums);
     },
