@@ -33,6 +33,11 @@ export function createWebAudioParts(
   return {
     context,
     read(waveform, spectrum) {
+      if (context.state === "suspended") {
+        throw new Error(
+          "AudioContext is suspended. Call source.resume() from a user gesture and await it before updating the Analyser.",
+        );
+      }
       analyserNode.getFloatTimeDomainData(waveform);
       analyserNode.getByteFrequencyData(bytes);
       for (let binIndex = 0; binIndex < bytes.length; binIndex += 1) {

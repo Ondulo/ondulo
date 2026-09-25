@@ -10,6 +10,7 @@ import {
 describe("media element Source", () => {
   it("reads normalized frames through an AnalyserNode on the given context", () => {
     const { stub, context } = createStubContext();
+    stub.state = "running";
     const source = createSource({
       kind: "element",
       element: createStubElement(),

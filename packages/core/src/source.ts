@@ -1,3 +1,4 @@
+import { createAudioNodeParts } from "./audio-node.js";
 import { createDemoSignal } from "./demo.js";
 import { createMediaElementParts } from "./media-element.js";
 import { createMediaStreamParts } from "./media-stream.js";
@@ -49,11 +50,19 @@ export type CreateMediaStreamSourceOptions = Readonly<{
   fftSize?: number;
 }>;
 
+export type CreateAudioNodeSourceOptions = Readonly<{
+  kind: "node";
+  /** Reads the node's first output. OfflineAudioContext is not supported. */
+  node: AudioNode;
+  fftSize?: number;
+}>;
+
 export type CreateSourceOptions =
   | CreatePushedSourceOptions
   | CreateDemoSourceOptions
   | CreateMediaElementSourceOptions
-  | CreateMediaStreamSourceOptions;
+  | CreateMediaStreamSourceOptions
+  | CreateAudioNodeSourceOptions;
 
 type SourceBase = Readonly<{
   [sourceBrand]: true;
@@ -95,11 +104,24 @@ export type MediaStreamSource = SourceBase &
     dispose(): void;
   }>;
 
+/** A Source reading an existing Web Audio node without changing its playback routing. */
+export type AudioNodeSource = SourceBase &
+  Readonly<{
+    kind: "node";
+    node: AudioNode;
+    context: AudioContext;
+    /** Resumes the node's AudioContext, typically from a user gesture. */
+    resume(): Promise<void>;
+    /** Disconnects this Source's AnalyserNode, preserving the node's other connections. */
+    dispose(): void;
+  }>;
+
 export type Source =
   | PushedSource
   | DemoSource
   | MediaElementSource
-  | MediaStreamSource;
+  | MediaStreamSource
+  | AudioNodeSource;
 
 /** Fills the Analyser's buffers with the Source's current frame. */
 type FrameReader = (
@@ -117,6 +139,7 @@ export function createSource(
 export function createSource(
   options: CreateMediaStreamSourceOptions,
 ): MediaStreamSource;
+export function createSource(options: CreateAudioNodeSourceOptions): AudioNodeSource;
 export function createSource(options: CreateSourceOptions): Source {
   const fftSize = options.fftSize ?? DEFAULT_FFT_SIZE;
   validateFftSize(fftSize);
@@ -130,6 +153,8 @@ export function createSource(options: CreateSourceOptions): Source {
       return createMediaElementSource(options, fftSize);
     case "stream":
       return createMediaStreamSource(options, fftSize);
+    case "node":
+      return createAudioNodeSource(options, fftSize);
   }
 }
 
@@ -240,6 +265,26 @@ function createMediaStreamSource(
     sampleRate: parts.context.sampleRate,
     fftSize,
     stream: options.stream,
+    context: parts.context,
+    resume: parts.resume,
+    dispose: parts.dispose,
+  };
+
+  frameReaders.set(source, parts.read);
+  return source;
+}
+
+function createAudioNodeSource(
+  options: CreateAudioNodeSourceOptions,
+  fftSize: number,
+): AudioNodeSource {
+  const parts = createAudioNodeParts(options.node, fftSize);
+  const source: AudioNodeSource = {
+    [sourceBrand]: true,
+    kind: "node",
+    sampleRate: parts.context.sampleRate,
+    fftSize,
+    node: options.node,
     context: parts.context,
     resume: parts.resume,
     dispose: parts.dispose,

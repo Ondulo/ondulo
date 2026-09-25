@@ -35,11 +35,19 @@ export class StubAudioContext {
   resume = vi.fn(async () => {
     this.state = "running";
   });
+  close = vi.fn(async () => {
+    this.state = "closed";
+  });
 }
 
 export function createStubContext() {
   const stub = new StubAudioContext();
   return { stub, context: stub as unknown as AudioContext };
+}
+
+export function createStubNode(context: BaseAudioContext) {
+  const stub = Object.assign(new StubSourceNode(), { context });
+  return { stub, node: stub as unknown as AudioNode };
 }
 
 export function createStubElement(): HTMLMediaElement {

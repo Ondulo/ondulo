@@ -6,6 +6,8 @@ export {
 export type { Features } from "./features.js";
 export {
   createSource,
+  type AudioNodeSource,
+  type CreateAudioNodeSourceOptions,
   type CreateDemoSourceOptions,
   type CreateMediaElementSourceOptions,
   type CreateMediaStreamSourceOptions,

@@ -6,6 +6,7 @@ import { createStubContext, createStubStream } from "./web-audio-stubs.js";
 describe("MediaStream Source", () => {
   it("reads normalized frames through an AnalyserNode without reaching the destination", () => {
     const { stub, context } = createStubContext();
+    stub.state = "running";
     const stream = createStubStream();
     const source = createSource({ kind: "stream", stream, context, fftSize: 512 });
     const analyser = createAnalyser({ source });
