@@ -15,11 +15,25 @@ export function createMediaStreamParts(
     fftSize: number;
   }>,
 ): WebAudioParts {
-  if (options.stream.getAudioTracks().length === 0) {
+  // Track replacement still requires a new Source, so retain the creation-time set.
+  const audioTracks = options.stream.getAudioTracks();
+  if (audioTracks.length === 0) {
     throw new TypeError("MediaStream must have at least one audio track.");
   }
 
   const context = resolveAudioContext(options.context);
   const streamNode = context.createMediaStreamSource(options.stream);
-  return createWebAudioParts(context, streamNode, options.fftSize);
+  const parts = createWebAudioParts(context, streamNode, options.fftSize);
+
+  return {
+    ...parts,
+    read(waveform, spectrum) {
+      if (audioTracks.every((track) => track.readyState === "ended")) {
+        throw new Error(
+          "MediaStream has no live audio tracks. Supply a MediaStream with at least one live audio track.",
+        );
+      }
+      parts.read(waveform, spectrum);
+    },
+  };
 }

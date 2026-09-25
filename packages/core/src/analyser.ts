@@ -16,7 +16,7 @@ export type CreateAnalyserOptions = Readonly<{
 export type Analyser = Readonly<{
   source: Source;
   features: Features;
-  /** Refreshes Features. Throws if a Web Audio Source's context is suspended. */
+  /** Refreshes Features. Throws when a Web Audio Source cannot provide a frame. */
   update(): void;
 }>;
 

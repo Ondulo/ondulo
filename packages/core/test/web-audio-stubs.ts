@@ -54,7 +54,18 @@ export function createStubElement(): HTMLMediaElement {
   return {} as HTMLMediaElement;
 }
 
-export function createStubStream(audioTrackCount = 1): MediaStream {
-  const tracks = Array.from({ length: audioTrackCount }, () => ({}));
-  return { getAudioTracks: () => tracks } as unknown as MediaStream;
+export type StubMediaStream = MediaStream &
+  Readonly<{
+    audioTracks: Array<{ readyState: MediaStreamTrackState }>;
+  }>;
+
+export function createStubStream(audioTrackCount = 1): StubMediaStream {
+  const audioTracks: Array<{ readyState: MediaStreamTrackState }> = Array.from(
+    { length: audioTrackCount },
+    () => ({ readyState: "live" }),
+  );
+  return {
+    audioTracks,
+    getAudioTracks: () => audioTracks,
+  } as unknown as StubMediaStream;
 }
