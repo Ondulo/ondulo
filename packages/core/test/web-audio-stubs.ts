@@ -50,8 +50,20 @@ export function createStubNode(context: BaseAudioContext) {
   return { stub, node: stub as unknown as AudioNode };
 }
 
-export function createStubElement(): HTMLMediaElement {
-  return {} as HTMLMediaElement;
+export function createStubElement(
+  options: Readonly<{
+    currentSrc?: string;
+    crossOrigin?: string | null;
+    documentOrigin?: string;
+  }> = {},
+): HTMLMediaElement {
+  return {
+    currentSrc: options.currentSrc ?? "",
+    crossOrigin: options.crossOrigin ?? null,
+    ownerDocument: {
+      location: { origin: options.documentOrigin ?? "https://app.example" },
+    },
+  } as unknown as HTMLMediaElement;
 }
 
 export type StubMediaStream = MediaStream &

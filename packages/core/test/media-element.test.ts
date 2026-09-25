@@ -33,6 +33,79 @@ describe("media element Source", () => {
     expect(analyser.features.level).toBeCloseTo(0.5);
   });
 
+  it("rejects a cross-origin resource without CORS before changing the audio graph", () => {
+    const { stub, context } = createStubContext();
+    const element = createStubElement({
+      currentSrc: "https://media.example/song.mp3",
+      documentOrigin: "https://app.example",
+    });
+
+    expect(() => createSource({ kind: "element", element, context })).toThrow(
+      'Media element audio is unavailable to Web Audio because its selected resource is cross-origin without CORS. Set element.crossOrigin = "anonymous" before setting src and allow the page origin in the resource\'s Access-Control-Allow-Origin header.',
+    );
+    expect(stub.createMediaElementSource).not.toHaveBeenCalled();
+    expect(stub.analysers).toHaveLength(0);
+  });
+
+  it.each([
+    {
+      case: "same-origin",
+      currentSrc: "https://app.example/song.mp3",
+      crossOrigin: null,
+    },
+    {
+      case: "CORS-enabled cross-origin",
+      currentSrc: "https://media.example/song.mp3",
+      crossOrigin: "anonymous",
+    },
+  ])("allows a silent $case resource", ({ currentSrc, crossOrigin }) => {
+    const { stub, context } = createStubContext();
+    stub.state = "running";
+    const source = createSource({
+      kind: "element",
+      element: createStubElement({ currentSrc, crossOrigin }),
+      context,
+    });
+    const analyser = createAnalyser({ source });
+    const [analyserNode] = stub.analysers;
+    vi.spyOn(analyserNode, "getFloatTimeDomainData").mockImplementation((target) =>
+      target.fill(0),
+    );
+    vi.spyOn(analyserNode, "getByteFrequencyData").mockImplementation((target) =>
+      target.fill(0),
+    );
+
+    analyser.update();
+
+    expect(analyser.features.level).toBe(0);
+    expect(analyser.features.spectrum[0]).toBe(0);
+  });
+
+  it("rejects a later cross-origin selection before replacing Features", () => {
+    const { stub, context } = createStubContext();
+    stub.state = "running";
+    const element = createStubElement({
+      currentSrc: "https://app.example/song.mp3",
+    });
+    const source = createSource({ kind: "element", element, context });
+    const analyser = createAnalyser({ source });
+    const [analyserNode] = stub.analysers;
+    const waveformRead = vi.spyOn(analyserNode, "getFloatTimeDomainData");
+    const spectrumRead = vi.spyOn(analyserNode, "getByteFrequencyData");
+
+    analyser.update();
+    const lastFeatures = structuredClone(analyser.features);
+    Object.defineProperty(element, "currentSrc", {
+      configurable: true,
+      value: "https://media.example/song.mp3",
+    });
+
+    expect(() => analyser.update()).toThrow("cross-origin without CORS");
+    expect(waveformRead).toHaveBeenCalledTimes(1);
+    expect(spectrumRead).toHaveBeenCalledTimes(1);
+    expect(analyser.features).toEqual(lastFeatures);
+  });
+
   it("attaches an element to its context once and shares the media node", () => {
     const { stub, context } = createStubContext();
     const element = createStubElement();

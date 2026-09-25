@@ -31,6 +31,7 @@ export type CreateDemoSourceOptions = Readonly<{
 
 export type CreateMediaElementSourceOptions = Readonly<{
   kind: "element";
+  /** Cross-origin URL resources require `crossOrigin` to be set before `src`. */
   element: HTMLMediaElement;
   /** AudioContext to attach to. Defaults to one shared, lazily created context. */
   context?: AudioContext;
