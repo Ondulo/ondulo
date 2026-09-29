@@ -41,9 +41,9 @@ export type CreateMediaElementSourceOptions = Readonly<{
 export type CreateMediaStreamSourceOptions = Readonly<{
   kind: "stream";
   /**
-   * A microphone or WebRTC stream with at least one audio track. Only its
-   * first audio track is analysed, chosen when the Source is created; if that
-   * track is replaced, dispose this Source and create a new one.
+   * A microphone or WebRTC stream with at least one audio track. Only the
+   * track with the lowest id is analysed, chosen when the Source is created.
+   * If that track is replaced, dispose this Source and create a new one.
    */
   stream: MediaStream;
   /** AudioContext to attach to. Defaults to one shared, lazily created context. */
@@ -141,6 +141,7 @@ export function createSource(
   options: CreateMediaStreamSourceOptions,
 ): MediaStreamSource;
 export function createSource(options: CreateAudioNodeSourceOptions): AudioNodeSource;
+export function createSource(options: CreateSourceOptions): Source;
 export function createSource(options: CreateSourceOptions): Source {
   const fftSize = options.fftSize ?? DEFAULT_FFT_SIZE;
   validateFftSize(fftSize);

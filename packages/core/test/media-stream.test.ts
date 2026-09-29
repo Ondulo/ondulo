@@ -31,10 +31,13 @@ describe("MediaStream Source", () => {
     ).toThrow("MediaStream must have at least one audio track");
   });
 
-  it("accepts silence while a track is live and rejects reads once all tracks end", () => {
+  it("accepts silence while the selected track lives and rejects reads when it ends", () => {
     const { stub, context } = createStubContext();
     stub.state = "running";
-    const stream = createStubStream(2);
+    const stream = createStubStream(3);
+    stream.audioTracks[0].id = "z";
+    stream.audioTracks[1].id = "a";
+    stream.audioTracks[2].id = "m";
     const source = createSource({ kind: "stream", stream, context });
     const analyser = createAnalyser({ source });
     const [analyserNode] = stub.analysers;
@@ -55,8 +58,9 @@ describe("MediaStream Source", () => {
 
     stream.audioTracks[1].readyState = "ended";
     expect(() => analyser.update()).toThrow(
-      "MediaStream has no live audio tracks. Supply a MediaStream with at least one live audio track.",
+      "MediaStream's selected audio track has ended. Create a new Source for a replacement track.",
     );
+    expect(stream.audioTracks[2].readyState).toBe("live");
     expect(waveformRead).toHaveBeenCalledTimes(2);
     expect(spectrumRead).toHaveBeenCalledTimes(2);
     expect(analyser.features).toEqual(lastFeatures);

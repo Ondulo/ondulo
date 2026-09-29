@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { createAnalyser, createSource } from "@ondulo/core";
 import { act, cleanup, renderHook } from "@testing-library/react";
-import { StrictMode } from "react";
+import { StrictMode, useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { useFeatures } from "../src/index.js";
@@ -117,5 +117,35 @@ describe("useFeatures", () => {
     });
     act(() => frames.step(64));
     expect(onError).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps one error report when an inline handler rerenders the component", () => {
+    const frames = installFrames();
+    const { analyser } = createPushedAnalyser();
+    const error = new Error("AudioContext is suspended");
+    vi.spyOn(analyser, "update").mockImplementation(() => {
+      throw error;
+    });
+    const onError = vi.fn();
+
+    const { result } = renderHook(() => {
+      const [errorCount, setErrorCount] = useState(0);
+      useFeatures(
+        analyser,
+        () => {},
+        (caught) => {
+          onError(caught);
+          setErrorCount((count) => count + 1);
+        },
+      );
+      return errorCount;
+    });
+
+    act(() => frames.step(16));
+    act(() => frames.step(32));
+    expect(result.current).toBe(1);
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(onError).toHaveBeenCalledWith(error);
+    expect(frames.pending()).toBe(1);
   });
 });

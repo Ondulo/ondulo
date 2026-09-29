@@ -85,4 +85,19 @@ describe("Web Audio node Source", () => {
     expect(contextStub.close).not.toHaveBeenCalled();
     expect(analyser.features.level).toBeCloseTo(0.5);
   });
+
+  it("still disposes after the app has already disconnected its node", () => {
+    const { stub: contextStub, context } = createStubContext();
+    const { stub: nodeStub, node } = createStubNode(context);
+    const source = createSource({ kind: "node", node });
+    const [analyserNode] = contextStub.analysers;
+    nodeStub.disconnect.mockImplementationOnce(() => {
+      throw new DOMException("Edge already removed", "InvalidAccessError");
+    });
+
+    expect(() => source.dispose()).not.toThrow();
+    expect(() => source.dispose()).not.toThrow();
+    expect(nodeStub.disconnect.mock.calls).toEqual([[analyserNode]]);
+    expect(analyserNode.disconnect).toHaveBeenCalledTimes(1);
+  });
 });

@@ -1,5 +1,5 @@
 import type { Analyser, Features } from "@ondulo/core";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 /** Reads Features on animation frames without rendering React for every frame. */
 export function useFeatures(
@@ -7,6 +7,13 @@ export function useFeatures(
   onFrame: (features: Features, time: number) => void,
   onError?: (error: unknown) => void,
 ): void {
+  const onFrameRef = useRef(onFrame);
+  const onErrorRef = useRef(onError);
+  useEffect(() => {
+    onFrameRef.current = onFrame;
+    onErrorRef.current = onError;
+  }, [onFrame, onError]);
+
   useEffect(() => {
     let active = true;
     let lastError: string | undefined;
@@ -22,8 +29,8 @@ export function useFeatures(
         const message = error instanceof Error ? error.message : String(error);
         if (message !== lastError) {
           lastError = message;
-          if (onError) {
-            onError(error);
+          if (onErrorRef.current) {
+            onErrorRef.current(error);
           } else {
             throw error;
           }
@@ -32,7 +39,7 @@ export function useFeatures(
       }
 
       lastError = undefined;
-      onFrame(analyser.features, time);
+      onFrameRef.current(analyser.features, time);
       if (active) {
         frameId = requestAnimationFrame(readFrame);
       }
@@ -42,5 +49,5 @@ export function useFeatures(
       active = false;
       cancelAnimationFrame(frameId);
     };
-  }, [analyser, onFrame, onError]);
+  }, [analyser]);
 }

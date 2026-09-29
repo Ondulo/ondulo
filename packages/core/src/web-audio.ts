@@ -46,13 +46,24 @@ export function createWebAudioParts(
     },
     resume: () => context.resume(),
     dispose() {
-      // Disconnecting an edge that is already gone throws InvalidAccessError.
       if (disposed) {
         return;
       }
-      disposed = true;
-      input.disconnect(analyserNode);
+      try {
+        input.disconnect(analyserNode);
+      } catch (error) {
+        // The app may have disconnected its own node before disposing this Source.
+        if (
+          error === null ||
+          typeof error !== "object" ||
+          !("name" in error) ||
+          error.name !== "InvalidAccessError"
+        ) {
+          throw error;
+        }
+      }
       analyserNode.disconnect();
+      disposed = true;
     },
   };
 }

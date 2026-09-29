@@ -68,13 +68,13 @@ export function createStubElement(
 
 export type StubMediaStream = MediaStream &
   Readonly<{
-    audioTracks: Array<{ readyState: MediaStreamTrackState }>;
+    audioTracks: Array<{ id: string; readyState: MediaStreamTrackState }>;
   }>;
 
 export function createStubStream(audioTrackCount = 1): StubMediaStream {
-  const audioTracks: Array<{ readyState: MediaStreamTrackState }> = Array.from(
+  const audioTracks: Array<{ id: string; readyState: MediaStreamTrackState }> = Array.from(
     { length: audioTrackCount },
-    () => ({ readyState: "live" }),
+    (_, index) => ({ id: `audio-${index}`, readyState: "live" }),
   );
   return {
     audioTracks,

@@ -15,11 +15,14 @@ export function createMediaStreamParts(
     fftSize: number;
   }>,
 ): WebAudioParts {
-  // Track replacement still requires a new Source, so retain the creation-time set.
+  // MediaStreamAudioSourceNode selects the creation-time audio track with the lowest id.
   const audioTracks = options.stream.getAudioTracks();
   if (audioTracks.length === 0) {
     throw new TypeError("MediaStream must have at least one audio track.");
   }
+  const selectedTrack = audioTracks.reduce((selected, track) =>
+    track.id < selected.id ? track : selected,
+  );
 
   const context = resolveAudioContext(options.context);
   const streamNode = context.createMediaStreamSource(options.stream);
@@ -28,9 +31,9 @@ export function createMediaStreamParts(
   return {
     ...parts,
     read(waveform, spectrum) {
-      if (audioTracks.every((track) => track.readyState === "ended")) {
+      if (selectedTrack.readyState === "ended") {
         throw new Error(
-          "MediaStream has no live audio tracks. Supply a MediaStream with at least one live audio track.",
+          "MediaStream's selected audio track has ended. Create a new Source for a replacement track.",
         );
       }
       parts.read(waveform, spectrum);

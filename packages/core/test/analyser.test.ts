@@ -1,11 +1,25 @@
 import { describe, expect, it } from "vitest";
 
-import { createAnalyser, createSource } from "../src/index.js";
+import {
+  createAnalyser,
+  createSource,
+  type CreateSourceOptions,
+  type Source,
+} from "../src/index.js";
 
 const SAMPLE_RATE = 48_000;
 const FFT_SIZE = 2_048;
 
 describe("pushed Source", () => {
+  it("accepts a caller's Source options union", () => {
+    const fromOptions = (options: CreateSourceOptions): Source =>
+      createSource(options);
+
+    expect(fromOptions({ kind: "pushed", sampleRate: SAMPLE_RATE }).kind).toBe(
+      "pushed",
+    );
+  });
+
   it("rejects Source settings that could create invalid buffers", () => {
     expect(() =>
       createSource({ kind: "pushed", sampleRate: 0 }),
