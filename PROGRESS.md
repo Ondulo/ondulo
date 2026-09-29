@@ -24,18 +24,20 @@ M1 Engine
 - [x] Report a MediaStream Source once all audio tracks captured at creation have ended. Keep silent live streams valid and preserve the last Features frame on failure.
 - [x] Report an HTTP(S) media element resource whose origin differs from its document when no CORS mode is set. Check before wiring and when the selected resource changes, without treating ordinary silence as an error.
 - [x] Create the `@ondulo/react` package and `useAnalyser`, with React 18.3 and 19 peer support and focused hook lifecycle tests.
+- [x] Implement `useFeatures` as an animation-frame callback hook with cancellation and Source failure reporting.
 
 ## Current state
 
-The React package foundation and `useAnalyser` slice is complete and verified. The local M1 commits are ahead of `origin/main` and have not been pushed.
+The `useFeatures` slice is complete and verified. The local M1 commits are ahead of `origin/main` and have not been pushed.
 
 Verification completed:
 
-- `pnpm test`, 31 tests passed (Web Audio stubbed; Vitest runs in Node)
+- `pnpm test`, 34 tests passed (Web Audio stubbed; Vitest runs in Node)
 - `pnpm typecheck`
 - `pnpm build`, passed with the broader filesystem access esbuild requires on this machine
 - `git diff --check`
 - Hook tests cover stable identity across rerenders with equivalent options, rebuilding when a frequency option or Source changes, and the package builds against React 19.3.
+- `useFeatures` tests cover a stable Features object, update-before-callback ordering, Strict Mode setup, Analyser replacement, unmount cancellation, and recovery after a reported update failure.
 - Three parameterized tests cover element, stream, and node Sources: suspended reads fail before reading buffers, Features remain unchanged, resume restores reads, and suspension after a successful read is detected again.
 - A focused MediaStream test covers a zero-valued frame while tracks are live, one ended track while another remains live, the transition to all tracks ended, and unchanged Features after the failure.
 - Media-element tests cover rejection before graph wiring, same-origin and CORS-enabled silent resources, and a later unsafe resource selection that leaves Features unchanged.
@@ -55,15 +57,15 @@ Design notes:
 - A MediaStream Source retains the audio tracks present at creation. Each read fails only when every retained track has `readyState === "ended"`; replacing tracks still requires disposing the Source and creating another one.
 - A media element Source compares `currentSrc` with its owning document's origin. A cross-origin HTTP(S) resource requires a non-null `crossOrigin` value set before `src`; the error also directs the app to configure `Access-Control-Allow-Origin`. The guard runs before graph wiring and only reparses the URL when `currentSrc` or `crossOrigin` changes, so ordinary frame reads do not allocate. Browser-internal CORS labeling after redirects and the success of response headers are not exposed to the library.
 - `useAnalyser` takes the core analyser options and memoizes by Source identity and individual frequency option values, so recreating an options object does not reset Features. It has no Source cleanup; the application owns Source disposal.
+- `useFeatures` passes the updated Features and frame timestamp to `onFrame` without React state updates. If `analyser.update()` fails, it skips drawing stale data, reports the first error through `onError` (or throws when no handler is supplied), and retries future frames so a resumed Source can recover without remounting. It cancels pending frames when the Analyser or callback changes and on unmount.
 
 ## Next slice
 
-Implement `useFeatures` as a frame callback hook. It should call `analyser.update()` before delivering the same reusable Features object to a caller each animation frame, stop its loop on unmount or Analyser change, and avoid React state updates per frame. Add focused loop lifecycle tests.
+Review the M1 public API as an npm consumer: verify both packages' exports and declarations, the React 18.3 and 19 peer range, server-side import safety, and the Source/Analyser/hook lifecycle contracts. Fix issues found in this scope and run the full tests, typecheck, build, and package checks before marking M1 complete.
 
 ## Remaining M1 work
 
-- `useFeatures`, the next slice above.
-- Final M1 public API review
+- Final M1 public API review, the next slice above.
 
 ## Known issues or blockers
 
