@@ -1,12 +1,13 @@
-import { createSource } from "@ondulo/core";
+import { createAnalyser, createSource } from "@ondulo/core";
 import { createElement } from "react";
 import { renderToString } from "react-dom/server";
 import { expect, it } from "vitest";
 
-import { useAnalyser, useFeatures } from "../src/index.js";
+import { Spectrum, useAnalyser, useFeatures } from "../src/index.js";
 
 it("imports and renders hooks on a server without scheduling frames", () => {
   const source = createSource({ kind: "demo" });
+  const analyser = createAnalyser({ source });
 
   function ServerVisualizer() {
     const analyser = useAnalyser({ source });
@@ -16,4 +17,7 @@ it("imports and renders hooks on a server without scheduling frames", () => {
 
   expect(typeof window).toBe("undefined");
   expect(renderToString(createElement(ServerVisualizer))).toBe("<span>0</span>");
+  expect(
+    renderToString(createElement(Spectrum, { analyser, mode: "lines" })),
+  ).toContain("<canvas");
 });

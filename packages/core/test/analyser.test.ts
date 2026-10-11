@@ -70,6 +70,22 @@ describe("pushed Source", () => {
 });
 
 describe("Analyser", () => {
+  it("exposes the frequency range used for its logarithmic bands", () => {
+    const source = createSource({
+      kind: "pushed",
+      sampleRate: SAMPLE_RATE,
+      fftSize: FFT_SIZE,
+    });
+    const analyser = createAnalyser({
+      source,
+      minFrequency: 130,
+      maxFrequency: 1_000,
+    });
+
+    expect(analyser.minFrequency).toBe(130);
+    expect(analyser.maxFrequency).toBe(1_000);
+  });
+
   it("updates one stable Features object and its typed arrays", () => {
     const source = createSource({
       kind: "pushed",

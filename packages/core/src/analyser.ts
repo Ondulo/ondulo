@@ -15,6 +15,8 @@ export type CreateAnalyserOptions = Readonly<{
 
 export type Analyser = Readonly<{
   source: Source;
+  minFrequency: number;
+  maxFrequency: number;
   features: Features;
   /** Refreshes Features. Throws when a Web Audio Source cannot provide a frame. */
   update(): void;
@@ -66,6 +68,8 @@ export function createAnalyser(options: CreateAnalyserOptions): Analyser {
 
   return {
     source: options.source,
+    minFrequency,
+    maxFrequency,
     features,
     update() {
       readSourceFrame(options.source, features.waveform, features.spectrum);
